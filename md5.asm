@@ -1,6 +1,6 @@
 .Model Small
 .Stack 100h
-.Data
+Data Segment
   
   USART_CMD equ 002h
   USART_DATA equ 000h
@@ -21,7 +21,6 @@
   hash dd 4 dup (?)
   w dw 0,0,0,0,0,0,0,0,0x80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x80,0,0,0     
  
- ; w db 'abcdefghabcdefgh',0x80,39 dup(0), 128, 0, 0, 0, 0, 0, 0, 0 
   
   
   a dd ?
@@ -34,48 +33,47 @@
   cache2 dw 20 dup(?)
   temp dd ?
   
-  Chuoi db 1000 dup(?)  
+  Chuoi db 1000 dup(?)
+  Result db 32 dup(?)  
   
   count dd ?
+
+ends
   
-.Code
-Main Proc
+Code segment 
+Start:
+
     mov ax,@Data
     mov ds,ax
     mov es,ax
     cld
     
-    mov ah,9
-    lea dx,ThongBao
-    int 21h
-    
-    mov cx,0
-    mov ah,1
+  
    
-   KhoiTao:
+   
+   CALL initUART
+   
+   mov cx,12
+   lea di,ThongBao
+   Call uart_print_string
+   
+   
+   mov cx,0 
+   
    
    lea di,Chuoi
    cld 
    xor cx,cx
-   mov ah,1
    
-   CALL initUART
-   
-   
-    
    Nhapchuoi:
-;proteus 
+
+    Call DELAY
+    Call uart_recv
     
-   ; in al,USART_CMD
-    
-    ;end
-    
-     
-     
-  ;  int 21h
     cmp al,13
     je Append
-  
+    
+    OUT USART_DATA,AL
   
     stosb
     inc cx
@@ -88,10 +86,9 @@ Main Proc
      
    Append:
     
+    mov al,13
+    OUT USART_DATA,AL
     
-    
-   
-   ;thuat toan 
     lea si,Chuoi
     lea di,w
     cld
@@ -531,16 +528,7 @@ Main Proc
        mov bx,word ptr h3+2
        adc ax,bx
        mov word ptr h3+2,ax
-       
-     ;  jmp Exit
-       
-       mov ah,2
-       mov dl,10
-       int 21h
-       
-       mov ah,2
-       mov dl,13
-       int 21h
+ 
        
        
        mov cx,16
@@ -549,7 +537,10 @@ Main Proc
        cld
        
        
-      HienMD5:
+       lea di,Result
+       cld
+       
+      SetMD5:
         lodsb
        First: 
         mov dl,al
@@ -562,8 +553,9 @@ Main Proc
         jmp Print1
        Chu:
         add dl,87
-       Print1: 
-        int 21h
+       Print1:
+        mov al,dl
+        stosb          
         
        Secornd: 
         mov dl,dh
@@ -575,22 +567,32 @@ Main Proc
        Chu2:
         add dl,87
        Print2:
-        int 21h
-        Loop HienMD5 
+        mov al,dl
+        stosb
+        Loop SetMD5 
        
-       
-       
+ 
+     Exit: 
+     
+        lea di,Result
+        mov cx,32
+        Call uart_print_string
+     
         
-      
-     Exit:
     
-    mov ah,4Ch
-    int 21h
+ends 
     
-;proteus
+
      
      
-     ; input: al
+        DELAY PROC
+            mov cx,10000
+            L2:
+            nop ;3 cycles
+            loop L2; ;17 cycles
+            RET
+        DELAY ENDP
+     
         uart_send proc
             push bx 
             mov bl, al 
@@ -609,21 +611,15 @@ Main Proc
         uart_send endp  
         
         
-        ; input di, cx
+      
         uart_print_string proc    
-            push ax  
-           push cx    
-           push di
-        
+
         uart_print_loop:        
             mov al, [di]
             call uart_send
             inc di      
             loop uart_print_loop
-                   
-            pop di   
-            pop cx    
-            pop ax
+
             ret
         uart_print_string endp
             
@@ -649,12 +645,7 @@ Main Proc
             OUT USART_CMD,AL; 
             ;End Set up
             RET    
-        initUART ENDP
-                
+        initUART ENDP           
             
     
-    
-  
-Main EndP
-
-    End Main
+end start       
